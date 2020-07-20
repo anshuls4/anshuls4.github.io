@@ -1,0 +1,241 @@
+<!doctype html>
+<style>
+.legend {
+    font-size: 16px;
+    text-anchor: left;
+}
+.button {
+        float: center;
+        position: center;
+        margin-right:70px;
+        text-decoration: none;
+        display: inline-block;
+        background-color: #4CAF50;
+        color: white;
+        padding: 8px 64px;
+        font-size: 16px;
+        font-weight: bold;
+}
+.button1 {
+  background-color: #4CAF50;
+  color: white;
+}
+
+.button1:hover {
+  background-color: #ddd;
+  color: black;
+}
+</style>
+<html>
+<script src="https://d3js.org/d3.v4.min.js"></script>
+<body>
+	<header>
+		<h1>Population Growth trend</h1>
+		
+	</header>
+   <svg width=1000 height=500></svg>
+   <script>
+		var crange = ["#FF6F60", "#FF00FF", "#006300", "#CC033C", "#993CF3"];
+		var svg = d3.select("svg").style("background-color", '#F0F8FF');
+		var margin = 100
+		var width = svg.attr("width") - margin
+		var height = svg.attr("height") - margin;
+		
+		// Parse the population to number format
+		var parseNumber = d3.format(",");
+			
+		// Adding the range for x,y and color attributes
+		var x = d3.scaleLinear().range([0, width])
+		var y = d3.scaleLinear().range([height, 0])
+		var cs = d3.scaleOrdinal().range(crange);
+		
+		var g = svg.append("g")
+            .attr("transform", "translate(" + 100 + "," + 50 + ")");
+
+		// Define the line chart for each country
+		var linepop = d3.line()
+			.x(function(d) { return x(d.Year); })
+			.y(function(d) { return y(d.Population); });
+							
+		// Load population growth trend for top 5 most populated countries
+		d3.csv("PopulationDataTrend.csv", function(data) {	
+		
+		// format the data
+		  data.forEach(function(d) {
+			  d.Year = +d.Year;
+			  d.Population = +d.Population;
+		  });
+
+		// Scale the range of the data
+		x.domain([1960, 2019]);
+		y.domain([0, 1397715000]);
+		cs.domain([0,4]);
+		
+		// pivoting the data for each country
+		var dataGroup = d3.nest()
+			.key(function(d) {
+				return d.Country;
+			})
+			.entries(data);		
+		
+		// Drawing the line data for all the 5 countries
+		dataGroup.forEach(function(d, i) {	
+			svg.append("path")
+            .attr('stroke', cs(i))
+			.attr('stroke-width', 1)
+			.attr('fill', 'none')
+			.attr('class', 'country-line')
+			.attr("transform", "translate(" + margin + ", 50)")
+            .attr("d", linepop(d.values))
+			
+			// Add the Legend
+			var legend = g.selectAll('g')
+			  .data(dataGroup)
+			  .enter()
+			  .append('g')
+			  .attr('class', 'legend');
+
+			legend.append('rect')
+			  .attr('x', 20)
+			  .attr('y', function(d, i) {
+				return i * 20;
+			  })
+			  .attr('width', 10)
+			  .attr('height', 10)
+			  .style('fill', function(d,i) {
+				return cs(i);
+			  });
+
+			legend.append('text')
+			  .attr('x', 40)
+			  .attr('y', function(d, i) {
+				return (i * 20) + 10;
+			  })
+			  .text(function(d) {
+				return d.key;
+			  });                                   
+			});
+			
+		// Adding the annotation
+		var annotation = g.append('g');
+
+		annotation.append('text')
+		  .attr('x', 1040)
+		  .attr('y', 0)
+		  .text("India's population might surpass China"); 
+			
+		// Adding the bottom x-axis for the bar chart
+		g.append("g")
+               .attr("transform", "translate(0," + height + ")")
+               .call(d3.axisBottom(x))
+			   
+		g.append("text")
+		.attr("class", "x label")
+		.attr("text-anchor", "end")
+		.attr("x", width/2)
+		.attr("y", height + (height/10))
+		.text("Year");
+		
+		// Adding the y-axis for the bar chart
+		g.append("g")
+               .attr("transform", "translate(0, 0)")
+               .call(d3.axisLeft(y))
+
+		g.append("text")
+		.attr("class", "y label")
+		.attr("text-anchor", "end")
+		.attr("x", 0 - (height / 2))
+		.attr("y", -(margin))
+		.attr("dy", ".75em")
+		.attr("transform", "rotate(-90)")
+		.style("text-anchor", "middle")
+		.text("Population");
+		
+		var tooltip = g.append("g");
+
+		tooltip.append("path")
+		  .attr("class", "tooltip-display")
+		  .style("opacity", "0");
+		  
+		var countries = document.getElementsByClassName('country-line');
+		
+		var country = tooltip.selectAll('.countryline')
+		  .data(dataGroup)
+		  .enter()
+		  .append("g")
+		  .attr("class", "countryline");
+
+		country.append("rect")
+		  .attr("width", 1)
+		  .attr("height", 1)
+		  .style("opacity", "0");
+		
+		// displaying the population
+		country.append("text");
+
+		
+		tooltip.append('svg:rect')
+		  .attr('fill', 'none')
+		  .attr('pointer-events', 'all')
+		  .attr('width', width)
+		  .attr('height', height)
+		  .on('mouseover', function() {
+			d3.select(".tooltip-display")
+			  .style("opacity", "1");
+			d3.selectAll(".countryline text")
+			  .style("opacity", "1");
+		  })
+		  .on('mouseout', function() {
+			d3.select(".tooltip-display")
+			  .style("opacity", "0");
+			d3.selectAll(".countryline text")
+			  .style("opacity", "0");
+		  })		  
+		  .on('mousemove', function() {
+			// d3 mouse will give the coordinates
+			var pointer = d3.mouse(this);
+			d3.select(".tooltip-display")
+			  .attr("d", function() {
+				var d = "M" + pointer[0] + "," + height;
+				d += " " + pointer[0] + "," + 0;
+				return d;
+			  });
+
+			d3.selectAll(".countryline")
+			  .attr("transform", function(d, i) {
+				var start = 0
+				var	end = countries[i].getTotalLength()
+				var	result = null;
+
+				while (true){
+				  result = Math.floor((start + end) / 2);
+				  pos = countries[i].getPointAtLength(result);
+				  if ((result == end || result == start) && pos.x != pointer[0]) {
+					  break;
+				  }
+				  if (pos.x < pointer[0]){
+					start = result;
+				  }
+				  else if (pos.x > pointer[0]){
+					end = result;
+				  }
+				  else break; 
+				}
+				
+				// display absolute population values
+				d3.select(this).select('text')
+				  .text(parseNumber(y.invert(pos.y).toFixed(0)));
+				  
+				return "translate(" + pointer[0] + "," + pos.y +")";
+			  });
+		  });		
+		});	
+   </script>
+   <p>This chart demonstrates how the population of Top5 populated countries has been growing through past few decades. You can hover over the chart to get more information on the population for a particular year. Observe how the population of India and China has grown significantly in past few decades as compared to United States and other countries. </p>
+   <p>Use the button below to analyze population growth data categorized by Urban and Rural population. </p>
+   <input type=button id="next" class="button button1" onClick="location.href='https://anshuls4.github.io/RuralVsUrbanPopulationGrowth.html'" value='Rural Vs Urban Population Growth'>
+   <footer>
+		
+	</footer>
+   </body>
+</html>

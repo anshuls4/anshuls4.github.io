@@ -1,0 +1,261 @@
+<!doctype html>
+<style>
+.line {
+  fill: none;
+  stroke-width: 2px;
+}
+.legend {
+    font-size: 16px;
+    text-anchor: left;
+}
+.button {
+        float: center;
+        position: center;
+        margin-right:70px;
+        text-decoration: none;
+        display: inline-block;
+        background-color: #4CAF50;
+        color: white;
+        padding: 8px 64px;
+        font-size: 16px;
+        font-weight: bold;
+}
+.button1 {
+  background-color: #4CAF50;
+  color: white;
+}
+
+.button1:hover {
+  background-color: #ddd;
+  color: black;
+}
+</style>
+<html>
+<script src="https://d3js.org/d3.v4.min.js"></script>
+<body>
+	<header>
+		<h1>Population Growth Categorized by Rural and Urban</h1>
+		
+		
+   <svg width=1400 height=500></svg>
+   <div id="countryDropdown"></div>
+   <script>
+		var crange = ["#0000FF", "#7FFF00"];
+		var ddrange = ["#FF6F60", "#FF00FF", "#006300", "#CC033C", "#993CF3"];
+		var svg = d3.select("svg").style("background-color", '#F0F8FF');
+		var margin = 100
+		var width = svg.attr("width") - margin
+		var height = svg.attr("height") - margin;
+			
+		// Adding the range for x,y and color attributes
+		var x = d3.scaleLinear().range([0, width])
+		var y = d3.scaleLinear().range([height, 0])
+		var cs = d3.scaleOrdinal().range(crange);
+		var colordd = d3.scaleOrdinal().range(ddrange);
+		
+		var g = svg.append("g")
+            .attr("transform", "translate(" + 100 + "," + 50 + ")");
+		
+		  
+		var zeroAnnotation = g.append('g');		
+		zeroAnnotation.append('text')
+		  .attr('x', 1200)
+		  .attr('y', 330)
+		  .text("Neutral Growth"); 
+		  
+		// Adding the annotation line
+		g.append("line")          
+			.style("stroke", "black") 			
+			.attr("x1", 1250)     
+			.attr("y1", 292)      
+			.attr("x2", 1250)     
+			.attr("y2", 310);
+		  
+		// Define the line chart for each country
+		var linepop = d3.line()
+			.x(function(d) { return x(+d.Year); })
+			.y(function(d) { return y(+d.PopulationGrowth); });
+					  
+					
+		// Load Rural and Urban PopulationGrowth growth trend for top 5 most populated countries
+		d3.csv("RuralVsUrbanPopulationDataTrend.csv", function(data) {	
+		
+		// format the data
+		  data.forEach(function(d) {
+			  d.Year = +d.Year;
+			  d.Country = d.Country;
+			  d.PopulationGrowth = +d.PopulationGrowth;
+			  d.GrowthType = d.GrowthType;
+		  });
+
+		// Scale the range of the data
+		x.domain([1960,2019]);
+		y.domain([-3,8]);
+		cs.domain([0,1]);
+		colordd.domain([0,4]);
+		
+		// pivoting the data for each country
+		var dataGroup = d3.nest()
+			.key(function(d) {
+				return d.Country;
+			})
+			.key(function(d){
+				return d.GrowthType;
+			})
+			.entries(data)
+			
+		// Adding the zero x-axis for the chart
+		g.append("line")          
+			.style("stroke", "red") 
+			.style("stroke-dasharray", ("3, 3"))			
+			.attr("x1", 0)     
+			.attr("y1", 292)      
+			.attr("x2", 1450)     
+			.attr("y2", 292);
+		
+		// Adding the bottom x-axis for the chart
+		g.append("g")
+               .attr("transform", "translate(0," + height + ")")
+               .call(d3.axisBottom(x))
+			   
+		g.append("text")
+		.attr("class", "x label")
+		.attr("text-anchor", "end")
+		.attr("x", width/2)
+		.attr("y", height + (height/10))
+		.text("Year");
+		
+		// Adding the y-axis for the chart
+		g.append("g")
+               .attr("transform", "translate(0, 0)")
+               .call(d3.axisLeft(y))
+
+		g.append("text")
+		.attr("class", "y label")
+		.attr("text-anchor", "end")
+		.attr("x", 0 - (height / 2))
+		.attr("y", -(margin))
+		.attr("dy", ".75em")
+		.attr("transform", "rotate(-90)")
+		.style("text-anchor", "middle")
+		.text("Population Growth (% of total population)");
+		
+		// Add the Legend
+		g.append('rect')
+		  .attr('x', 20)
+		  .attr('y', 0)
+		  .attr('width', 10)
+		  .attr('height', 10)
+		  .style('fill', function(d,i) {
+			return cs(0);
+		  });
+		  g.append('rect')
+		  .attr('x', 20)
+		  .attr('y', 20)
+		  .attr('width', 10)
+		  .attr('height', 10)
+		  .style('fill', function(d,i) {
+			return cs(1);
+		  });
+
+		  g.append('text')
+		  .attr('x', 40)
+		  .attr('y', 10)
+		  .text("Rural")
+		  .attr('class', 'legend'); 
+		  
+		  g.append('text')
+		  .attr('x', 40)
+		  .attr('y', 30)
+		  .text("Urban")
+		  .attr('class', 'legend'); 
+		
+		// Create a dropdown
+		var countryMenu = d3.select("#countryDropdown")
+
+		countryMenu
+			.append("select")
+			.selectAll("option")
+			.data(dataGroup)
+			.enter()
+			.append("option")
+			.attr("value", function(d){
+				return d.key;
+			})
+			.text(function(d){
+				return d.key;
+			})
+			.style("color", function(d,i){
+				return colordd(i);
+			})
+		
+		// Function to create the initial rural vs urban comparison
+		var pageload = function(country){
+			// Filter the data to include selected country
+			var selectCountry = dataGroup.filter(function(d){
+					return d.key == country;
+				  })
+			var selectCountries = g.selectAll(".countries")
+				.data(selectCountry, function(d){
+				  return d ? d.key : this.key;
+				})
+				.enter()
+				.append("g")
+				.attr("class", "countries")				
+			var initialPath = selectCountries.selectAll(".line")
+				.data(function(d) { return d.values; })
+				.enter()
+				.append("path")
+				.attr('stroke', function(d,i) { return cs(i); })
+			initialPath
+				.attr("d", function(d){
+					return linepop(d.values)
+				})
+				.attr("class", "line")
+		}
+
+		// Create initial graph
+		pageload("USA")
+		
+		// Update the data based on selection
+		// Reference https://stackoverflow.com/questions/48036954/adding-circles-to-multi-line-graph-with-dropdown-on-d3-js
+		var updatePage = function(country){
+			// Filter the data to include only selected country
+			var selectCountry = dataGroup.filter(function(d){
+					return d.key == country;
+				  })
+			// Select all of the grouped elements and update the data
+			var selectCountries = g.selectAll(".countries")
+				.data(selectCountry)
+				// Select all the lines and transition to new positions
+				selectCountries.selectAll("path.line")
+				   .data(function(d){
+					  return (d.values);
+					})
+					.transition()
+					  .duration(1000)
+					  .attr("d", function(d){
+						return linepop(d.values)
+					  })
+		}
+
+		// Run update function when dropdown selection changes
+		countryMenu.on('change', function(){
+			// Find which country was selected from the dropdown
+			var selectedCountry = d3.select(this)
+				.select("select")
+				.property("value")
+			// Run update function with the selected country
+			updatePage(selectedCountry)
+		});
+		
+		});	
+   </script>
+   <p>This chart demonstrates the growth trend for Rural & Urban population of the country that you have selected using a drop-down list. Feel free to explore how the population growth trend is for different countries categorized by their Rural and Urban population. </p>
+   <input type=button id="next" class="button button1" onClick="location.href='https://anshuls4.github.io/index.html'" value='Back to Overview'>
+	</header>
+   <footer>
+		
+	</footer>
+   </body>
+</html>
